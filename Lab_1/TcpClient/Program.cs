@@ -5,6 +5,8 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
@@ -12,7 +14,7 @@ using System.Text.RegularExpressions;
 
 namespace TcpClient
 {
-    class Program
+    public class Program
     {
         /// <summary>
         /// Host
@@ -22,7 +24,7 @@ namespace TcpClient
         /// <summary>
         /// Site port
         /// </summary>
-        private const int Port = 80;
+        private static int Port = 80;
 
         /// <summary>
         /// Images
@@ -86,7 +88,7 @@ namespace TcpClient
             if (!extracted) return;
             Console.ForegroundColor = ConsoleColor.DarkYellow;
             Console.WriteLine($"Start to download image: {path} with thread: {threadIndex + 1}");
-            DownloadImage(path);
+            DownloadImageAsync(path).GetAwaiter().GetResult();
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"----------------Download complete for image: {path} with thread: {threadIndex + 1}");
             RunThread(threadIndex);
@@ -97,6 +99,7 @@ namespace TcpClient
         /// </summary>
         /// <param name="source"></param>
         /// <returns></returns>
+        // ReSharper disable once UnusedMember.Local
         private static IEnumerable<string> ExtractImagesFromStringWithHtmlDocument(string source)
         {
             source = WebUtility.HtmlDecode(source);
@@ -118,22 +121,23 @@ namespace TcpClient
         /// <returns></returns>
         private static IEnumerable<string> ExtractImagesFromStringWithRegex(string source)
         {
-            const string expr = "<img.*?lazy=\"(.*?)\"[^\\>]+>";
+            //const string expr = "<img.*?src=\"(.*?)\"[^\\>]+>";
+            //var result = Regex.Matches(source, expr);
+            //var images = result.Select(x => x.Groups[1].Value)
+            //    .Where(x => !string.IsNullOrEmpty(x))
+            //    .Distinct()
+            //    .ToList();
+            //return images;
+
+            const string expr = "(?<=\\b=\")[^\"]*";
             var result = Regex.Matches(source, expr);
-            var images = result.Select(x => x.Groups[1].Value)
-                .Where(x => !string.IsNullOrEmpty(x))
+            var images = result.Select(x => x.Groups[0].Value)
+                .Where(x => !string.IsNullOrEmpty(x) && 
+                            (x.EndsWith(".png") || x.EndsWith(".jpg")) 
+                            && (!x.StartsWith("http") || x.Contains(Host)))
                 .Distinct()
                 .ToList();
             return images;
-        }
-
-        /// <summary>
-        /// Download images
-        /// </summary>
-        /// <param name="path"></param>
-        public static void DownloadImage(string path)
-        {
-            DownloadImageAsync(path).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -143,7 +147,8 @@ namespace TcpClient
         private static async Task<string> HttpRequestAsync()
         {
             using var tcp = new System.Net.Sockets.TcpClient(Host, Port);
-            await using var stream = tcp.GetStream();
+            Stream networkStream = tcp.GetStream();
+
             tcp.SendTimeout = 500;
             tcp.ReceiveTimeout = 1000;
             // Send request headers
@@ -153,13 +158,20 @@ namespace TcpClient
 
             var requestHeaders = builder.ToString();
             var header = Encoding.ASCII.GetBytes(requestHeaders);
-            await stream.WriteAsync(header, 0, header.Length);
+
+            if (Port == 443)
+            {
+                var sslStream = new SslStream(networkStream, false, ValidateServerCertificate, null);
+                await sslStream.AuthenticateAsClientAsync("127.0.0.1");
+                networkStream = sslStream;
+            }
+            await networkStream.WriteAsync(header, 0, header.Length);
 
             // receive data
             string result;
             await using (var memory = new MemoryStream())
             {
-                await stream.CopyToAsync(memory);
+                await networkStream.CopyToAsync(memory);
                 memory.Position = 0;
                 var data = memory.ToArray();
 
@@ -182,47 +194,73 @@ namespace TcpClient
                 }
             }
 
-            //Debug.WriteLine(result);
+            networkStream.Close();
+
             return result;
         }
 
+        /// <summary>
+        /// Validate server
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="certificate"></param>
+        /// <param name="chain"></param>
+        /// <param name="sslPolicyErrors"></param>
+        /// <returns></returns>
+        public static bool ValidateServerCertificate(object sender, X509Certificate certificate,
+            X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        {
+            return true;
+        }
 
+
+        /// <summary>
+        /// Download image
+        /// </summary>
+        /// <param name="imagePath"></param>
+        /// <returns></returns>
         private static async Task DownloadImageAsync(string imagePath)
         {
-            using (var tcp = new System.Net.Sockets.TcpClient(Host, Port))
-            using (var stream = tcp.GetStream())
+            using var tcp = new System.Net.Sockets.TcpClient(Host, Port);
+            Stream networkStream = tcp.GetStream();
+            tcp.SendTimeout = 500;
+            tcp.ReceiveTimeout = 1000;
+            // Send request headers
+            var builder = new StringBuilder();
+            builder.AppendLine(GetHeaders(imagePath));
+            builder.AppendLine();
+            var header = Encoding.ASCII.GetBytes(builder.ToString());
+            if (Port == 443)
             {
-                tcp.SendTimeout = 500;
-                tcp.ReceiveTimeout = 1000;
-                // Send request headers
-                var builder = new StringBuilder();
-                builder.AppendLine(GetHeaders(imagePath));
-                builder.AppendLine();
-                var header = Encoding.ASCII.GetBytes(builder.ToString());
-                await stream.WriteAsync(header, 0, header.Length);
-                // receive data
-                var memory = new MemoryStream();
-
-
-                await stream.CopyToAsync(memory);
-                memory.Position = 0;
-                var data = memory.ToArray();
-                var index = BinaryMatch(data, Encoding.ASCII.GetBytes("\r\n\r\n")) + 4;
-                var imgName = imagePath.Split("/").LastOrDefault();
-                var dir = Path.Combine(AppContext.BaseDirectory, "images");
-                if (!Directory.Exists(dir))
-                {
-                    Directory.CreateDirectory(dir);
-                }
-                var filePath = Path.Combine(dir, $"{imgName}");
-                using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
-                {
-                    fs.Write(data, index, data.Length - index);
-                }
-
-                memory.Position = index;
-                memory.Close();
+                var sslStream = new SslStream(networkStream, false, ValidateServerCertificate, null);
+                await sslStream.AuthenticateAsClientAsync("127.0.0.1");
+                networkStream = sslStream;
             }
+
+            await networkStream.WriteAsync(header, 0, header.Length);
+            // receive data
+            var memory = new MemoryStream();
+
+
+            await networkStream.CopyToAsync(memory);
+            memory.Position = 0;
+            var data = memory.ToArray();
+            var index = BinaryMatch(data, Encoding.ASCII.GetBytes("\r\n\r\n")) + 4;
+            var imgName = imagePath.Split("/").LastOrDefault();
+            var dir = Path.Combine(AppContext.BaseDirectory, "images");
+            if (!Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+            var filePath = Path.Combine(dir, $"{imgName}");
+            await using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+            {
+                fs.Write(data, index, data.Length - index);
+            }
+
+            memory.Position = index;
+            memory.Close();
+            networkStream.Close();
         }
 
         private static int BinaryMatch(byte[] input, byte[] pattern)
