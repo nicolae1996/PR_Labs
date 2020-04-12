@@ -15,9 +15,9 @@ namespace SmtpApp.Services
         /// <summary>
         /// Email settings
         /// </summary>
-        private readonly IWritableOptions<EmailSettingsViewModel> _options;
+        private readonly IWritableOptions<SmtpSettingsViewModel> _options;
 
-        public EmailSender(IWritableOptions<EmailSettingsViewModel> options)
+        public EmailSender(IWritableOptions<SmtpSettingsViewModel> options)
         {
             if (options.Value == null) throw new Exception("Email settings not register in appsettings file");
             _options = options;

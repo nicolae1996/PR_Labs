@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SmtpApp.Abstractions;
 using SmtpApp.Services;
 using SmtpApp.ViewModels;
 
@@ -33,8 +34,11 @@ namespace SmtpApp
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
 
-            services.ConfigureWritable<EmailSettingsViewModel>(Configuration.GetSection("EmailSettings"));
+            services.ConfigureWritable<SmtpSettingsViewModel>(Configuration.GetSection("SmtpSettings"));
+            services.ConfigureWritable<ImapSettingsViewModel>(Configuration.GetSection("ImapSettings"));
+
             services.AddTransient<IEmailSender, EmailSender>();
+            services.AddTransient<IEmailReader, EmailReader>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

@@ -23,11 +23,6 @@ namespace SmtpApp.ViewModels
         public int Port { get; set; }
 
         /// <summary>
-        /// Timeout
-        /// </summary>
-        public int Timeout { get; set; }
-
-        /// <summary>
         /// Enable Ssl
         /// </summary>
         public bool EnableSsl { get; set; }
