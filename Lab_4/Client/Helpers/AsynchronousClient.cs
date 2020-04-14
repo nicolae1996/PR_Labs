@@ -1,15 +1,18 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
+using GR.Core.Extensions;
 using Shared.Models;
 using Shared.Extensions;
+using Shared;
+using Shared.Enums;
 
 namespace Client.Helpers
 {
-    public class AsynchronousClient
+    public class AsynchronousClient : BaseSocketCommunication
     {
         /// <summary>
         /// Port
@@ -20,21 +23,22 @@ namespace Client.Helpers
         /// Address
         /// </summary>
         protected IPAddress IpAddress { get; set; }
+        /// <summary>
+        /// Client connection
+        /// </summary>
+        protected Connection ClientConnection { get; set; }
 
-        #region Events
-
-        // ManualResetEvent instances signal completion.  
-        private static ManualResetEvent _connectDone = new ManualResetEvent(false);
-
-        #endregion
-
+        /// <summary>
+        /// Client
+        /// </summary>
+        protected Socket Client { get; set; }
 
         #region Constructors
 
         public AsynchronousClient()
         {
             var ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
-            var ipAddress = ipHostInfo.AddressList[0];
+            var ipAddress = ipHostInfo.AddressList[2];
             IpAddress = ipAddress;
         }
 
@@ -52,64 +56,64 @@ namespace Client.Helpers
         /// </summary>
         public async Task StartClientAsync()
         {
-            // Connect to a remote device.  
-            try
-            {
-                var remoteEp = new IPEndPoint(IpAddress, Port);
+            var remoteEp = new IPEndPoint(IpAddress, Port);
 
-                // Create a TCP/IP socket.  
-                var client = new Socket(IpAddress.AddressFamily,
-                    SocketType.Stream, ProtocolType.Tcp);
+            // Create a TCP/IP socket.  
+            Client = new Socket(IpAddress.AddressFamily,
+                SocketType.Stream, ProtocolType.Tcp);
 
-                // Connect to the remote endpoint.  
-                client.BeginConnect(remoteEp, ConnectCallback, client);
-                _connectDone.WaitOne();
-
-
-                var messageToSend = "this is a text message from a socket";
-                var messageData = Encoding.ASCII.GetBytes(messageToSend);
-                var sendResponse = await client.CustomSendWithTimeoutAsync(messageData,
-                    0,
-                    StateObject.BufferSize,
-                    0,
-                    2000);
-
-
-                // Release the socket.  
-                client.Shutdown(SocketShutdown.Both);
-                client.Close();
-
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-            }
+            var connectResponse = await Client.CustomConnectAsync(remoteEp);
+            if (!connectResponse.Success)
+                throw new Exception("Fail to connect");
         }
 
-        private Connection Authenticate(Socket socket)
+        /// <summary>
+        /// Close connection
+        /// </summary>
+        public void CloseConnection()
         {
-
+            // Release the socket.  
+            Client.Shutdown(SocketShutdown.Both);
+            Client.Close();
         }
 
-        private static void ConnectCallback(IAsyncResult ar)
+        /// <summary>
+        /// Authenticate
+        /// </summary>
+        /// <returns></returns>
+        public async Task<Result<Guid>> AuthenticateAsync(AuthenticationCredentials credentials)
         {
-            try
+            var packet = new Packet
             {
-                // Retrieve the socket from the state object.  
-                var client = (Socket)ar.AsyncState;
-
-                // Complete the connection.  
-                client.EndConnect(ar);
-
-                Console.WriteLine("Socket connected to {0}", client.RemoteEndPoint);
-
-                // Signal that the connection has been made.  
-                _connectDone.Set();
-            }
-            catch (Exception e)
+                Type = PacketType.Authentication,
+                Data = new Dictionary<string, string>
+                {
+                    { GlobalResources.CommonKeys.Authentication, credentials.SerializeAsJson() }
+                }
+            };
+            var authResult = await SendAndReceivePacketAsync(Client, packet);
+            if (authResult.Success)
             {
-                Console.WriteLine(e.ToString());
+                var connection = authResult.Value.Data
+                    .FirstOrDefault(x => x.Key.Equals("connection"))
+                    .Value
+                    .ToGuid();
+
+                var user = authResult.Value.Data
+                    .FirstOrDefault(x => x.Key == "user")
+                    .Value
+                    .Deserialize<User>();
+
+                ClientConnection = new Connection(Client, true)
+                {
+                    ConnectionId = connection,
+                    User = user
+                };
+
+                return Result.Ok(connection);
             }
+
+            return Result.Fail<Guid>(authResult.Error);
         }
     }
 }

@@ -20,8 +20,24 @@ namespace Shared.Models
         /// <returns></returns>
         public Socket GetSocket() => StateObject.WorkSocket;
 
+        /// <summary>
+        /// User
+        /// </summary>
+        public User User { get; set; }
+
+        /// <summary>
+        /// Connection id
+        /// </summary>
         public Guid ConnectionId { get; set; }
 
+        /// <summary>
+        /// State
+        /// </summary>
         public StateObject StateObject { get; set; }
+
+        /// <summary>
+        /// Is auth
+        /// </summary>
+        public bool IsAuthenticated { get; set; }
     }
 }

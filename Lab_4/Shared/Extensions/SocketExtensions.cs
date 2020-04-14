@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Shared.Models;
@@ -7,6 +8,17 @@ namespace Shared.Extensions
 {
     public static class SocketExtensions
     {
+        /// <summary>
+        /// Custom connect
+        /// </summary>
+        /// <param name="socket"></param>
+        /// <param name="ipEndPoint"></param>
+        /// <returns></returns>
+        public static async Task<Result> CustomConnectAsync(this Socket socket, IPEndPoint ipEndPoint)
+        {
+            return await socket.CustomConnectWithTimeoutAsync(ipEndPoint.Address.ToString(), ipEndPoint.Port, GlobalResources.Timeout);
+        }
+
         /// <summary>
         /// Connect with timeout
         /// </summary>

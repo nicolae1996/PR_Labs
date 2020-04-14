@@ -1,14 +1,21 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
+using GR.Core.Extensions;
+using Shared;
+using Shared.Enums;
+using Shared.Helpers;
 using Shared.Models;
 
 namespace Server
 {
-    public class ServerAsynchronousSocketListener
+    public class ServerAsynchronousSocketListener : BaseSocketCommunication
     {
         /// <summary>
         /// Connections
@@ -38,7 +45,7 @@ namespace Server
         public ServerAsynchronousSocketListener()
         {
             var ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
-            var ipAddress = ipHostInfo.AddressList[0];
+            var ipAddress = ipHostInfo.AddressList[2];
             IpAddress = ipAddress;
         }
 
@@ -110,76 +117,118 @@ namespace Server
             handler.BeginReceive(connection.StateObject.Buffer, 0, StateObject.BufferSize, 0, ReadCallback, connection);
         }
 
-        public static void ReadCallback(IAsyncResult ar)
+        /// <summary>
+        /// Read callback
+        /// </summary>
+        /// <param name="ar"></param>
+        public async void ReadCallback(IAsyncResult ar)
         {
             // Retrieve the state object and the handler socket  
             // from the asynchronous state object.  
             var connection = (Connection)ar.AsyncState;
             var handler = connection.StateObject.WorkSocket;
 
-            // Read data from the client socket.
-            var bytesRead = handler.EndReceive(ar);
-
-            if (bytesRead > 0)
-            {
-                // There  might be more data, so store the data received so far.  
-                connection.StateObject.Sb.Append(Encoding.ASCII.GetString(
-                    connection.StateObject.Buffer, 0, bytesRead));
-
-                // Check for end-of-file tag. If it is not there, read
-                // more data.  
-                var content = connection.StateObject.Sb.ToString();
-                Console.WriteLine("Read {0} bytes from socket. \n Data : {1}",
-                    content.Length, content);
-
-                if (content.IndexOf("<EOF>", StringComparison.Ordinal) > -1)
-                {
-                    // All the data has been read from the
-                    // client. Display it on the console.  
-                    Console.WriteLine("Read {0} bytes from socket. \n Data : {1}",
-                        content.Length, content);
-
-
-                    // Echo the data back to the client.  
-                    Send(handler, content);
-                }
-                else
-                {
-                    // Not all data received. Get more.  
-                    handler.BeginReceive(connection.StateObject.Buffer, 0, StateObject.BufferSize, 0,
-                        ReadCallback, connection);
-                }
-            }
-        }
-
-        private static void Send(Socket handler, string data)
-        {
-            // Convert the string data to byte data using ASCII encoding.  
-            var byteData = Encoding.ASCII.GetBytes(data);
-
-            // Begin sending the data to the remote device.  
-            handler.BeginSend(byteData, 0, byteData.Length, 0,
-                SendCallback, handler);
-        }
-
-        private static void SendCallback(IAsyncResult ar)
-        {
             try
             {
-                // Retrieve the socket from the state object.  
-                var handler = (Socket)ar.AsyncState;
-                // Complete sending the data to the remote device.  
-                var bytesSent = handler.EndSend(ar);
-                Console.WriteLine("Sent {0} bytes to client.", bytesSent);
+                // Read data from the client socket.
+                var bytesRead = handler.EndReceive(ar);
 
-                //handler.Shutdown(SocketShutdown.Both);
-                //handler.Close();
+                if (bytesRead > 0)
+                {
+                    var receivedStringPacket = Encoding.ASCII.GetString(connection.StateObject.Buffer, 0, bytesRead);
+                    var packet = DecryptPacket(receivedStringPacket);
+                    await ProcessPacketAsync(connection, packet);
+                }
 
+                handler.BeginReceive(connection.StateObject.Buffer, 0, StateObject.BufferSize, 0,
+                    ReadCallback, connection);
+            }
+            catch (SocketException)
+            {
+                CloseClientConnection(connection);
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.ToString());
+                Console.WriteLine(e);
             }
+        }
+
+        /// <summary>
+        /// Close connection
+        /// </summary>
+        /// <param name="connection"></param>
+        public void CloseClientConnection(Connection connection)
+        {
+            Connections.TryRemove(connection.ConnectionId, out _);
+        }
+
+        /// <summary>
+        /// Process packet
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="packet"></param>
+        /// <returns></returns>
+        public async Task ProcessPacketAsync(Connection conn, Packet packet)
+        {
+            switch (packet.Type)
+            {
+                case PacketType.Authentication:
+                    await AuthorizeClientAsync(conn, packet);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+
+        /// <summary>
+        /// Authorize
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="packet"></param>
+        /// <returns></returns>
+        public async Task AuthorizeClientAsync(Connection conn, Packet packet)
+        {
+            var authData = packet.Data.FirstOrDefault(x => x.Key.Equals(GlobalResources.CommonKeys.Authentication)).Value.Deserialize<AuthenticationCredentials>();
+            var user = InMemoryUsers.Users.FirstOrDefault(x =>
+                x.UserName.Equals(authData.UserName) && x.Password.Equals(authData.Password));
+
+            var responsePacket = new Packet
+            {
+                Type = PacketType.AuthenticationResponse,
+                Token = CreateUserToken(user),
+                Data = new Dictionary<string, string>
+                {
+                    { "connection",  conn.ConnectionId.ToString() },
+                    { "userInfo",  user.SerializeAsJson() }
+                }
+            };
+
+            conn.IsAuthenticated = true;
+            conn.User = user;
+            await SendPacketAsync(conn.StateObject.WorkSocket, responsePacket);
+        }
+
+        /// <summary>
+        /// Create user token
+        /// </summary>
+        /// <param name="user"></param>
+        /// <returns></returns>
+        public string CreateUserToken(User user)
+            => EncryptTool.Encrypt($"{user.UserName}:{user.Password}", GlobalResources.SecretKey);
+
+        /// <summary>
+        /// Get user name from token
+        /// </summary>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public User GetUserFromToken(string token)
+        {
+            var basicStr = EncryptTool.Decrypt(token, GlobalResources.SecretKey);
+            if (basicStr.IsNullOrEmpty()) return null;
+            var spl = basicStr.Split(":");
+            var user = spl[0];
+            var pass = spl[1];
+            return InMemoryUsers.Users.FirstOrDefault(x => x.UserName.Equals(user) && x.Password.Equals(pass));
         }
     }
 }

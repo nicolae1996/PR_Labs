@@ -1,5 +1,7 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using Client.Helpers;
+using Shared.Models;
 
 namespace Client
 {
@@ -12,6 +14,13 @@ namespace Client
                 var client = new AsynchronousClient();
                 await client.StartClientAsync();
 
+                await client.AuthenticateAsync(new AuthenticationCredentials
+                {
+                    UserName = "admin",
+                    Password = "admin"
+                });
+
+                Console.ReadKey();
 
             }).Wait();
         }
