@@ -5,13 +5,15 @@ namespace Shared.Models
 {
     public class StateObject
     {
-        // Client socket.  
-        public Socket workSocket = null;
         // Size of receive buffer.  
-        public const int BufferSize = 256;
+        public const int BufferSize = 20;
+
+
+        // Client socket.  
+        public Socket WorkSocket = null;
         // Receive buffer.  
-        public byte[] buffer = new byte[BufferSize];
+        public byte[] Buffer = new byte[BufferSize];
         // Received data string.  
-        public StringBuilder sb = new StringBuilder();
+        public StringBuilder Sb = new StringBuilder();
     }
 }

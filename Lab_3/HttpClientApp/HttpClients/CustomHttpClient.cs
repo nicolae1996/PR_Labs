@@ -1,11 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Threading.Tasks;
 using GR.Core.Extensions;
 using IdentityModel.Client;
@@ -213,6 +210,30 @@ namespace HttpClientApp.HttpClients
         public Task<HttpResponseMessage> PostJsonAsync<T>(string url, T value)
         {
             return SendJsonAsync(HttpMethod.Post, url, value);
+        }
+
+        /// <summary>
+        /// Options
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="url"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public Task<HttpResponseMessage> OptionsJsonAsync<T>(string url, T value)
+        {
+            return SendJsonAsync(HttpMethod.Options, url, value);
+        }
+
+        /// <summary>
+        /// Head
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="url"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        public Task<HttpResponseMessage> HeadJsonAsync<T>(string url, T value)
+        {
+            return SendJsonAsync(HttpMethod.Head, url, value);
         }
 
         /// <summary>

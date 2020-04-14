@@ -1,4 +1,4 @@
-﻿using System;
+﻿using System.Threading.Tasks;
 using Client.Helpers;
 
 namespace Client
@@ -7,8 +7,13 @@ namespace Client
     {
         static void Main(string[] args)
         {
-            var client = new AsynchronousClient();
-            client.StartClient();
+            Task.Run(async () =>
+            {
+                var client = new AsynchronousClient();
+                await client.StartClientAsync();
+
+
+            }).Wait();
         }
     }
 }

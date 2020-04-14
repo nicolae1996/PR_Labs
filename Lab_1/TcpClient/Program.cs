@@ -19,12 +19,12 @@ namespace TcpClient
         /// <summary>
         /// Host
         /// </summary>
-        private const string Host = "unite.md";
+        private const string Host = "utm.md";
 
         /// <summary>
         /// Site port
         /// </summary>
-        private static int Port = 80;
+        private static int Port = 443;
 
         /// <summary>
         /// Images

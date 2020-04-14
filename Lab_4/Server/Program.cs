@@ -1,14 +1,11 @@
-﻿using System;
-
-namespace Server
+﻿namespace Server
 {
     class Program
     {
         static void Main(string[] args)
         {
-            var server = new AsynchronousSocketListener();
-            server.StartListening();
-            Console.WriteLine("Hello World!");
+            var server = new ServerAsynchronousSocketListener();
+            server.Start();
         }
     }
 }
