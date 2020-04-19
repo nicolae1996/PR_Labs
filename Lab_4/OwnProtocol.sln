@@ -3,11 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30002.166
 MinimumVisualStudioVersion = 15.0.26124.0
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Server", "Server\Server.csproj", "{4021D3A2-260A-4EA9-A9E5-13BAC355F75E}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Server", "Server\Server.csproj", "{4021D3A2-260A-4EA9-A9E5-13BAC355F75E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Client", "Client\Client.csproj", "{DE47CA4C-48B6-4E47-8187-A41228760557}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Client", "Client\Client.csproj", "{DE47CA4C-48B6-4E47-8187-A41228760557}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shared", "Shared\Shared.csproj", "{C7245055-4145-450B-82C7-5B79C64CDA31}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Shared", "Shared\Shared.csproj", "{C7245055-4145-450B-82C7-5B79C64CDA31}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WpfUIApp", "WpfUIApp\WpfUIApp.csproj", "{EF3C2321-C20F-4400-BA2F-4FAA1DD4513F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -55,6 +57,18 @@ Global
 		{C7245055-4145-450B-82C7-5B79C64CDA31}.Release|x64.Build.0 = Release|Any CPU
 		{C7245055-4145-450B-82C7-5B79C64CDA31}.Release|x86.ActiveCfg = Release|Any CPU
 		{C7245055-4145-450B-82C7-5B79C64CDA31}.Release|x86.Build.0 = Release|Any CPU
+		{EF3C2321-C20F-4400-BA2F-4FAA1DD4513F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EF3C2321-C20F-4400-BA2F-4FAA1DD4513F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EF3C2321-C20F-4400-BA2F-4FAA1DD4513F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EF3C2321-C20F-4400-BA2F-4FAA1DD4513F}.Debug|x64.Build.0 = Debug|Any CPU
+		{EF3C2321-C20F-4400-BA2F-4FAA1DD4513F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EF3C2321-C20F-4400-BA2F-4FAA1DD4513F}.Debug|x86.Build.0 = Debug|Any CPU
+		{EF3C2321-C20F-4400-BA2F-4FAA1DD4513F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EF3C2321-C20F-4400-BA2F-4FAA1DD4513F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EF3C2321-C20F-4400-BA2F-4FAA1DD4513F}.Release|x64.ActiveCfg = Release|Any CPU
+		{EF3C2321-C20F-4400-BA2F-4FAA1DD4513F}.Release|x64.Build.0 = Release|Any CPU
+		{EF3C2321-C20F-4400-BA2F-4FAA1DD4513F}.Release|x86.ActiveCfg = Release|Any CPU
+		{EF3C2321-C20F-4400-BA2F-4FAA1DD4513F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -11,6 +11,16 @@ namespace Shared.Models
         public PacketType Type { get; set; }
 
         /// <summary>
+        /// Bool result
+        /// </summary>
+        public bool IsSuccessResult { get; set; }
+
+        /// <summary>
+        /// Error
+        /// </summary>
+        public string Error { get; set; }
+
+        /// <summary>
         /// Token
         /// </summary>
         public string Token { get; set; } = "";

@@ -15,7 +15,7 @@ using Shared.Models;
 
 namespace Server
 {
-    public class ServerAsynchronousSocketListener : BaseSocketCommunication
+    public class FileTransferServer : BaseSocketCommunication
     {
         /// <summary>
         /// Connections
@@ -42,11 +42,12 @@ namespace Server
         /// <summary>
         /// Constructor
         /// </summary>
-        public ServerAsynchronousSocketListener()
+        public FileTransferServer()
         {
             var ipHostInfo = Dns.GetHostEntry(Dns.GetHostName());
             var ipAddress = ipHostInfo.AddressList[2];
             IpAddress = ipAddress;
+            OnInit();
         }
 
         /// <summary>
@@ -54,15 +55,49 @@ namespace Server
         /// </summary>
         /// <param name="address"></param>
         /// <param name="port"></param>
-        public ServerAsynchronousSocketListener(IPAddress address, int port)
+        public FileTransferServer(IPAddress address, int port)
         {
             Port = port;
             IpAddress = address;
+            OnInit();
         }
 
+        private void OnInit()
+        {
+            ShowWelcomeMessage();
+        }
+
+        /// <summary>
+        /// Show welcome message
+        /// </summary>
+        public void ShowWelcomeMessage()
+        {
+            var message = "File Transfer server";
+            Console.ForegroundColor = ConsoleColor.DarkBlue;
+            var topAndBottom = new string('-', Console.WindowWidth - 1);
+            Console.Write(topAndBottom + "\n");
+            Console.Write(topAndBottom + "\n");
+            var padding = new string('-', (Console.WindowWidth - message.Length) / 2);
+            Console.Write(padding);
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write(message);
+            Console.ForegroundColor = ConsoleColor.DarkBlue;
+            Console.Write(padding + "\n");
+            Console.Write(topAndBottom + "\n");
+            Console.Write(topAndBottom + "\n");
+            Console.ForegroundColor = ConsoleColor.White;
+        }
+
+
+        /// <summary>
+        /// Star
+        /// </summary>
         public void Start()
         {
+            Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Server started on {IpAddress} with port {Port}");
+            Console.ForegroundColor = ConsoleColor.White;
+
             var localEndPoint = new IPEndPoint(IpAddress, Port);
 
             // Create a TCP/IP socket.  
@@ -81,7 +116,11 @@ namespace Server
                     AllDone.Reset();
 
                     // Start an asynchronous socket to listen for connections.  
-                    Console.WriteLine("Waiting for a connection...");
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"Total connections: {Connections.Count}");
+
+                    Console.WriteLine("Waiting for a connection... \n");
+                    Console.ForegroundColor = ConsoleColor.White;
                     listener.BeginAccept(
                         AcceptCallback,
                         listener);
@@ -101,11 +140,12 @@ namespace Server
 
         }
 
+        /// <summary>
+        /// Callback
+        /// </summary>
+        /// <param name="ar"></param>
         public void AcceptCallback(IAsyncResult ar)
         {
-            // Signal the main thread to continue.  
-            AllDone.Set();
-
             // Get the socket that handles the client request.  
             var listener = (Socket)ar.AsyncState;
             var handler = listener.EndAccept(ar);
@@ -113,8 +153,25 @@ namespace Server
             // Create new connection
             var connection = new Connection(handler);
 
-            Connections.TryAdd(connection.ConnectionId, connection);
+            AddNewConnection(connection);
+
+            // Signal the main thread to continue.  
+            AllDone.Set();
+
             handler.BeginReceive(connection.StateObject.Buffer, 0, StateObject.BufferSize, 0, ReadCallback, connection);
+        }
+
+        /// <summary>
+        /// Add new connection
+        /// </summary>
+        /// <param name="connection"></param>
+        private void AddNewConnection(Connection connection)
+        {
+            Connections.TryAdd(connection.ConnectionId, connection);
+
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"New device connected with id: {connection.ConnectionId}");
+            Console.ForegroundColor = ConsoleColor.White;
         }
 
         /// <summary>
@@ -159,6 +216,9 @@ namespace Server
         /// <param name="connection"></param>
         public void CloseClientConnection(Connection connection)
         {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Connection {connection.ConnectionId} was closed");
+            Console.ForegroundColor = ConsoleColor.White;
             Connections.TryRemove(connection.ConnectionId, out _);
         }
 
@@ -192,20 +252,34 @@ namespace Server
             var user = InMemoryUsers.Users.FirstOrDefault(x =>
                 x.UserName.Equals(authData.UserName) && x.Password.Equals(authData.Password));
 
-            var responsePacket = new Packet
+            if (user == null)
             {
-                Type = PacketType.AuthenticationResponse,
-                Token = CreateUserToken(user),
-                Data = new Dictionary<string, string>
+                var responsePacket = new Packet
                 {
-                    { "connection",  conn.ConnectionId.ToString() },
-                    { "userInfo",  user.SerializeAsJson() }
-                }
-            };
+                    Type = PacketType.AuthenticationResponse,
+                    Error = "Invalid user"
+                };
 
-            conn.IsAuthenticated = true;
-            conn.User = user;
-            await SendPacketAsync(conn.StateObject.WorkSocket, responsePacket);
+                await SendPacketAsync(conn.StateObject.WorkSocket, responsePacket);
+            }
+            else
+            {
+                var responsePacket = new Packet
+                {
+                    IsSuccessResult = true,
+                    Type = PacketType.AuthenticationResponse,
+                    Data = new Dictionary<string, string>
+                    {
+                        {"connection", conn.ConnectionId.ToString()}, {"userInfo", user.SerializeAsJson()}
+                    },
+                    Token = CreateUserToken(user)
+                };
+
+
+                conn.IsAuthenticated = true;
+                conn.User = user;
+                await SendPacketAsync(conn.StateObject.WorkSocket, responsePacket);
+            }
         }
 
         /// <summary>

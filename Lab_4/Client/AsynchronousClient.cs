@@ -94,6 +94,11 @@ namespace Client.Helpers
             var authResult = await SendAndReceivePacketAsync(Client, packet);
             if (authResult.Success)
             {
+                if (!authResult.Value.IsSuccessResult)
+                {
+                    return Result.Fail<Guid>(authResult.Value.Error);
+                }
+
                 var connection = authResult.Value.Data
                     .FirstOrDefault(x => x.Key.Equals("connection"))
                     .Value

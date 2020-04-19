@@ -4,7 +4,7 @@
     {
         static void Main(string[] args)
         {
-            var server = new ServerAsynchronousSocketListener();
+            var server = new FileTransferServer();
             server.Start();
         }
     }

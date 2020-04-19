@@ -1,0 +1,17 @@
+﻿<Window x:Class="WpfUIApp.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:WpfUIApp"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <Grid>
+        <Label Content="Welcome, please sign in" FontSize="18" HorizontalAlignment="Left" Margin="284,98,0,0" VerticalAlignment="Top" RenderTransformOrigin="1.186,0.382"/>
+        <Label Content="Username" HorizontalAlignment="Left" Margin="312,159,0,0" VerticalAlignment="Top"/>
+        <TextBox Name="UserNameBox" HorizontalAlignment="Left" Margin="312,191,0,0" Text="" TextWrapping="Wrap" VerticalAlignment="Top" Width="138" RenderTransformOrigin="0.5,0.5"></TextBox>
+        <Label Content="Password" HorizontalAlignment="Left" Margin="309,214,0,0" VerticalAlignment="Top"/>
+        <PasswordBox Name="PasswordBox" HorizontalAlignment="Left" Margin="312,245,0,0"  VerticalAlignment="Top" Width="138"/>
+        <Button Background="Blue" Foreground="White" Padding="6" Width="170" Content="Log in" HorizontalAlignment="Left" Margin="295,300,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.724,0.083" Click="LogIn_Click"/>
+    </Grid>
+</Window>
