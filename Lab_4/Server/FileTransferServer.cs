@@ -233,11 +233,163 @@ namespace Server
             switch (packet.Type)
             {
                 case PacketType.Authentication:
-                    await AuthorizeClientAsync(conn, packet);
+                    await AuthorizeClientHandlerAsync(conn, packet);
+                    break;
+                case PacketType.GetFiles:
+                    await GetFilesHandlerAsync(conn, packet);
+                    break;
+                case PacketType.UploadFile:
+                    await UploadFileHandlerAsync(conn, packet);
+                    break;
+                case PacketType.DownloadFiles:
+                    await DownloadFilesHandlerAsync(conn, packet);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+        }
+
+        /// <summary>
+        /// Get files
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="packet"></param>
+        /// <returns></returns>
+        public async Task GetFilesHandlerAsync(Connection conn, Packet packet)
+        {
+            Packet responsePacket;
+            if (!conn.IsAuthenticated)
+            {
+                responsePacket = new Packet
+                {
+                    Type = PacketType.AuthenticationResponse,
+                    Error = "Unauthorized"
+                };
+            }
+            else
+            {
+                var user = GetUserFromToken(packet.Token);
+                if (user == null)
+                {
+                    responsePacket = new Packet
+                    {
+                        Type = PacketType.AuthenticationResponse,
+                        Error = "Unauthorized"
+                    };
+                }
+                else
+                {
+                    var files = FileManager.GetFiles(conn.User);
+                    responsePacket = new Packet
+                    {
+                        IsSuccessResult = true,
+                        Type = PacketType.GetFiles,
+                        Data = new Dictionary<string, string>
+                        {
+                            { "files", files.SerializeAsJson() }
+                        }
+                    };
+                }
+            }
+
+            await SendPacketAsync(conn.StateObject.WorkSocket, responsePacket);
+        }
+
+        /// <summary>
+        /// Download files
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="packet"></param>
+        /// <returns></returns>
+        public async Task DownloadFilesHandlerAsync(Connection conn, Packet packet)
+        {
+            Packet responsePacket;
+            if (!conn.IsAuthenticated)
+            {
+                responsePacket = new Packet
+                {
+                    Type = PacketType.AuthenticationResponse,
+                    Error = "Unauthorized"
+                };
+            }
+            else
+            {
+                var user = GetUserFromToken(packet.Token);
+                if (user == null)
+                {
+                    responsePacket = new Packet
+                    {
+                        Type = PacketType.AuthenticationResponse,
+                        Error = "Unauthorized"
+                    };
+                }
+                else
+                {
+                    var reqFiles = packet.Data.FirstOrDefault(x => x.Key.Equals("files"))
+                        .Value
+                        .Deserialize<IEnumerable<File>>();
+
+                    var files = FileManager.GetDownloadFiles(reqFiles);
+                    responsePacket = new Packet
+                    {
+                        IsSuccessResult = true,
+                        Type = PacketType.DownloadFiles,
+                        Data = new Dictionary<string, string>
+                        {
+                            { "files", files.SerializeAsJson() }
+                        }
+                    };
+                }
+            }
+
+            await SendPacketAsync(conn.StateObject.WorkSocket, responsePacket);
+        }
+
+        /// <summary>
+        /// Upload file handler
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="packet"></param>
+        /// <returns></returns>
+        public async Task UploadFileHandlerAsync(Connection conn, Packet packet)
+        {
+            Packet responsePacket;
+            if (!conn.IsAuthenticated)
+            {
+                responsePacket = new Packet
+                {
+                    Type = PacketType.AuthenticationResponse,
+                    Error = "Unauthorized"
+                };
+            }
+            else
+            {
+                var user = GetUserFromToken(packet.Token);
+                if (user == null)
+                {
+                    responsePacket = new Packet
+                    {
+                        Type = PacketType.AuthenticationResponse,
+                        Error = "Unauthorized"
+                    };
+                }
+                else
+                {
+                    var fileName = packet.Data.FirstOrDefault(x => x.Key.Equals("fileName")).Value;
+                    var blob = packet.Data.FirstOrDefault(x => x.Key.Equals("blob")).Value.Deserialize<byte[]>();
+
+                    var saveResult = await FileManager.UploadFile(user, fileName, blob);
+
+                    responsePacket = new Packet
+                    {
+                        IsSuccessResult = saveResult.Success,
+                        Error = saveResult.Error,
+                        Type = PacketType.UploadFile
+                    };
+                }
+            }
+
+            await SendPacketAsync(conn.StateObject.WorkSocket, responsePacket);
         }
 
         /// <summary>
@@ -246,7 +398,7 @@ namespace Server
         /// <param name="conn"></param>
         /// <param name="packet"></param>
         /// <returns></returns>
-        public async Task AuthorizeClientAsync(Connection conn, Packet packet)
+        public async Task AuthorizeClientHandlerAsync(Connection conn, Packet packet)
         {
             var authData = packet.Data.FirstOrDefault(x => x.Key.Equals(GlobalResources.CommonKeys.Authentication)).Value.Deserialize<AuthenticationCredentials>();
             var user = InMemoryUsers.Users.FirstOrDefault(x =>
@@ -297,6 +449,7 @@ namespace Server
         /// <returns></returns>
         public User GetUserFromToken(string token)
         {
+            if (token.IsNullOrEmpty()) return null;
             var basicStr = EncryptTool.Decrypt(token, GlobalResources.SecretKey);
             if (basicStr.IsNullOrEmpty()) return null;
             var spl = basicStr.Split(":");

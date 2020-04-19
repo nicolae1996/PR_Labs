@@ -27,7 +27,6 @@ namespace WpfUIApp
             {
                 var w = new FileTransferWindow();
                 MessageBox.Show("Logged", "Info");
-                System.Threading.Thread.Sleep(10000);
                 Hide();
                 w.Show();
             }

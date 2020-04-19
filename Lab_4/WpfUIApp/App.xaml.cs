@@ -1,6 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Navigation;
-using Client.Helpers;
+using Client;
 
 namespace WpfUIApp
 {

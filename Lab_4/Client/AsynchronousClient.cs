@@ -5,12 +5,12 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using GR.Core.Extensions;
-using Shared.Models;
-using Shared.Extensions;
 using Shared;
 using Shared.Enums;
+using Shared.Extensions;
+using Shared.Models;
 
-namespace Client.Helpers
+namespace Client
 {
     public class AsynchronousClient : BaseSocketCommunication
     {
@@ -32,6 +32,8 @@ namespace Client.Helpers
         /// Client
         /// </summary>
         protected Socket Client { get; set; }
+
+        protected string Token { get; set; }
 
         #region Constructors
 
@@ -115,10 +117,109 @@ namespace Client.Helpers
                     User = user
                 };
 
+                Token = authResult.Value.Token;
                 return Result.Ok(connection);
             }
 
             return Result.Fail<Guid>(authResult.Error);
+        }
+
+
+        /// <summary>
+        /// Get files
+        /// </summary>
+        /// <returns></returns>
+        public async Task<Result<IEnumerable<File>>> GetFilesAsync()
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.GetFiles,
+                Token = Token
+            };
+            var result = await SendAndReceivePacketAsync(Client, packet);
+            if (result.Success)
+            {
+                if (!result.Value.IsSuccessResult)
+                {
+                    return Result.Fail<IEnumerable<File>>(result.Value.Error);
+                }
+
+                var files = result.Value.Data
+                    .FirstOrDefault(x => x.Key.Equals("files"))
+                    .Value
+                    .Deserialize<IEnumerable<File>>();
+
+                return Result.Ok(files);
+            }
+
+            return Result.Fail<IEnumerable<File>>(result.Error);
+        }
+
+        /// <summary>
+        /// Upload file
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="blob"></param>
+        /// <returns></returns>
+        public async Task<Result> UploadFileAsync(string name, byte[] blob)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.UploadFile,
+                Token = Token,
+                Data = new Dictionary<string, string>
+                {
+                    { "fileName", name },
+                    { "blob", blob.SerializeAsJson() }
+                }
+            };
+            var result = await SendAndReceivePacketAsync(Client, packet);
+            if (result.Success)
+            {
+                if (!result.Value.IsSuccessResult)
+                {
+                    return Result.Fail(result.Value.Error);
+                }
+
+                return Result.Ok();
+            }
+
+            return Result.Fail(result.Error);
+        }
+
+        /// <summary>
+        /// Download files
+        /// </summary>
+        /// <param name="files"></param>
+        /// <returns></returns>
+        public async Task<Result<IEnumerable<FileResult>>> DownloadFileAsync(IEnumerable<File> files)
+        {
+            var packet = new Packet
+            {
+                Type = PacketType.DownloadFiles,
+                Token = Token,
+                Data = new Dictionary<string, string>
+                {
+                    { "files", files.SerializeAsJson() }
+                }
+            };
+            var result = await SendAndReceivePacketAsync(Client, packet);
+            if (result.Success)
+            {
+                if (!result.Value.IsSuccessResult)
+                {
+                    return Result.Fail<IEnumerable<FileResult>>(result.Value.Error);
+                }
+
+                var downFiles = result.Value.Data
+                    .FirstOrDefault(x => x.Key.Equals("files"))
+                    .Value
+                    .Deserialize<IEnumerable<FileResult>>();
+
+                return Result.Ok(downFiles);
+            }
+
+            return Result.Fail<IEnumerable<FileResult>>(result.Error);
         }
     }
 }

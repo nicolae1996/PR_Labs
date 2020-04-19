@@ -3,6 +3,9 @@
     public enum PacketType
     {
         Authentication,
-        AuthenticationResponse
+        AuthenticationResponse,
+        GetFiles,
+        UploadFile,
+        DownloadFiles
     }
 }

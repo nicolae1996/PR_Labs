@@ -20,6 +20,9 @@
             </ListView.View>
         </ListView>
         <Label Content="My Files" HorizontalAlignment="Left" Margin="205,15,0,0" VerticalAlignment="Top"/>
+        <Label Content="+" Foreground="Green" FontSize="32" HorizontalAlignment="Left" Margin="275,-1,0,0" VerticalAlignment="Top" RenderTransformOrigin="0.109,0.145"/>
+        <Label Content="Upload file" HorizontalAlignment="Left" Margin="298,15,0,0" VerticalAlignment="Top" MouseDown="UIElement_OnMouseDown"/>
+        <Label Content="Download selected files" HorizontalAlignment="Left" Margin="392,15,0,0" VerticalAlignment="Top" MouseDown="Download_OnMouseDown" />
 
     </Grid>
 </Window>
