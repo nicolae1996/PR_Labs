@@ -6,4 +6,4 @@ Labs for programming in network
 - Lab2 - `complete`
 - Lab3 - `complete`
 - Lab4 - `complete`
-- Lab5 - `pending`
+- Lab5 - `complete`
